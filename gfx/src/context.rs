@@ -1,5 +1,8 @@
+
 use std::sync::Arc;
 use winit::window::Window;
+
+use crate::pipeline::PipelineBuilder;
 
 pub struct GfxContext {
     pub surface: wgpu::Surface<'static>,
@@ -7,6 +10,7 @@ pub struct GfxContext {
     pub queue: wgpu::Queue,
     pub config: wgpu::SurfaceConfiguration,
     pub size: winit::dpi::PhysicalSize<u32>,
+    pub pipeline: wgpu::RenderPipeline, 
 }
 
 impl GfxContext {
@@ -67,7 +71,11 @@ impl GfxContext {
 
         surface.configure(&device, &config);
 
-        Self { surface, device, queue, config, size }
+        let pipeline = PipelineBuilder::new(&device, surface_format)
+            .shader(include_str!("../shaders/triangle.wgsl"))
+            .build("Triangle Pipeline");
+
+        Self { surface, device, queue, config, size, pipeline }
     }
 
     pub fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
@@ -105,7 +113,7 @@ impl GfxContext {
         );
 
         {
-            let _render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Main Pass"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                     view: &view,
@@ -121,6 +129,9 @@ impl GfxContext {
                 depth_stencil_attachment: None,
                 ..Default::default()
             });
+
+            render_pass.set_pipeline(&self.pipeline);
+            render_pass.draw(0..3, 0..1);
         }
 
         self.queue.submit(std::iter::once(encoder.finish()));

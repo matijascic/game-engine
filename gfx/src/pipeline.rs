@@ -1,7 +1,6 @@
 pub struct PipelineBuilder<'a> {
     device: &'a wgpu::Device,
     shader_src: &'a str,
-    vertex_layouts: Vec<wgpu::VertexBufferLayout<'a>>,
     surface_format: wgpu::TextureFormat,
 }
 
@@ -10,18 +9,12 @@ impl<'a> PipelineBuilder<'a> {
         Self {
             device,
             shader_src: "",
-            vertex_layouts: vec![],
             surface_format,
         }
     }
 
     pub fn shader(mut self, src: &'a str) -> Self {
         self.shader_src = src;
-        self
-    }
-
-    pub fn vertex_layout(mut self, layout: wgpu::VertexBufferLayout<'a>) -> Self {
-        self.vertex_layouts.push(layout);
         self
     }
 
@@ -43,7 +36,7 @@ impl<'a> PipelineBuilder<'a> {
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: Some("vs_main"),
-                buffers: &self.vertex_layouts,
+                buffers: &[],
                 compilation_options: Default::default(),
             },
             fragment: Some(wgpu::FragmentState {
@@ -51,20 +44,20 @@ impl<'a> PipelineBuilder<'a> {
                 entry_point: Some("fs_main"),
                 targets: &[Some(wgpu::ColorTargetState {
                     format: self.surface_format,
-                    blend: Some(wgpu::BlendState::ALPHA_BLENDING),
+                    blend: Some(wgpu::BlendState::REPLACE),
                     write_mask: wgpu::ColorWrites::ALL,
                 })],
                 compilation_options: Default::default(),
             }),
             primitive: wgpu::PrimitiveState {
                 topology: wgpu::PrimitiveTopology::TriangleList,
-                cull_mode: Some(wgpu::Face::Back),
+                cull_mode: None,
                 ..Default::default()
             },
             depth_stencil: None,
             multisample: wgpu::MultisampleState::default(),
-            cache: None,
             multiview_mask: None,
+            cache: None,
         })
     }
 }
