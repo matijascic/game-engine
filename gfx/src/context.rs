@@ -1,4 +1,3 @@
-
 use std::sync::Arc;
 use winit::window::Window;
 
@@ -10,7 +9,7 @@ pub struct GfxContext {
     pub queue: wgpu::Queue,
     pub config: wgpu::SurfaceConfiguration,
     pub size: winit::dpi::PhysicalSize<u32>,
-    pub pipeline: wgpu::RenderPipeline, 
+    pub pipeline: wgpu::RenderPipeline,
 }
 
 impl GfxContext {
@@ -27,26 +26,22 @@ impl GfxContext {
 
         let surface = instance.create_surface(window.clone()).unwrap();
 
-        let adapter = pollster::block_on(
-            instance.request_adapter(&wgpu::RequestAdapterOptions {
-                power_preference: wgpu::PowerPreference::HighPerformance,
-                compatible_surface: Some(&surface),
-                force_fallback_adapter: false,
-            }),
-        )
+        let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
+            power_preference: wgpu::PowerPreference::HighPerformance,
+            compatible_surface: Some(&surface),
+            force_fallback_adapter: false,
+        }))
         .expect("No suitable GPU adapter found");
 
         println!("Using adapter: {:?}", adapter.get_info().name);
 
-        let (device, queue) = pollster::block_on(
-            adapter.request_device(&wgpu::DeviceDescriptor {
-                label: Some("Main Device"),
-                required_features: wgpu::Features::empty(),
-                required_limits: wgpu::Limits::default(),
-                memory_hints: Default::default(),
-                ..Default::default()
-            }),
-        )
+        let (device, queue) = pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor {
+            label: Some("Main Device"),
+            required_features: wgpu::Features::empty(),
+            required_limits: wgpu::Limits::default(),
+            memory_hints: Default::default(),
+            ..Default::default()
+        }))
         .unwrap();
 
         let surface_caps = surface.get_capabilities(&adapter);
@@ -75,7 +70,14 @@ impl GfxContext {
             .shader(include_str!("../shaders/triangle.wgsl"))
             .build("Triangle Pipeline");
 
-        Self { surface, device, queue, config, size, pipeline }
+        Self {
+            surface,
+            device,
+            queue,
+            config,
+            size,
+            pipeline,
+        }
     }
 
     pub fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
@@ -106,11 +108,15 @@ impl GfxContext {
             }
         };
 
-        let view = output.texture.create_view(&wgpu::TextureViewDescriptor::default());
+        let view = output
+            .texture
+            .create_view(&wgpu::TextureViewDescriptor::default());
 
-        let mut encoder = self.device.create_command_encoder(
-            &wgpu::CommandEncoderDescriptor { label: Some("Render Encoder") },
-        );
+        let mut encoder = self
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("Render Encoder"),
+            });
 
         {
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -120,7 +126,10 @@ impl GfxContext {
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 0.05, g: 0.05, b: 0.08, a: 1.0,
+                            r: 0.05,
+                            g: 0.05,
+                            b: 0.08,
+                            a: 1.0,
                         }),
                         store: wgpu::StoreOp::Store,
                     },

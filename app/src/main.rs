@@ -6,7 +6,6 @@ use winit::{
     window::{Window, WindowAttributes},
 };
 
-
 struct App {
     window: Option<Arc<Window>>,
     ctx: Option<gfx::GfxContext>,

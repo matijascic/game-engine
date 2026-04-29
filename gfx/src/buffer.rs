@@ -12,7 +12,10 @@ impl VertexBuffer {
             contents: bytemuck::cast_slice(data),
             usage: wgpu::BufferUsages::VERTEX,
         });
-        Self { buffer, count: data.len() as u32 }
+        Self {
+            buffer,
+            count: data.len() as u32,
+        }
     }
 }
 
@@ -28,6 +31,9 @@ impl IndexBuffer {
             contents: bytemuck::cast_slice(data),
             usage: wgpu::BufferUsages::INDEX,
         });
-        Self { buffer, count: data.len() as u32 }
+        Self {
+            buffer,
+            count: data.len() as u32,
+        }
     }
 }
