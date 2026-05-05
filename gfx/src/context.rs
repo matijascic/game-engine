@@ -74,10 +74,12 @@ impl GfxContext {
         }
     }
 
+    /// Set the pipeline to use for rendering
     pub fn set_pipeline(&mut self, pipeline: wgpu::RenderPipeline) {
         self.pipeline = Some(pipeline);
     }
 
+    /// Get the surface format (useful for app to build pipelines)
     pub fn surface_format(&self) -> wgpu::TextureFormat {
         self.config.format
     }
@@ -91,6 +93,82 @@ impl GfxContext {
         }
     }
 
+    /// Render an indexed mesh with a bind group.
+    pub fn render_indexed(
+        &self,
+        vertex_buffer: &wgpu::Buffer,
+        index_buffer: &wgpu::Buffer,
+        num_indices: u32,
+        bind_group: &wgpu::BindGroup,
+    ) -> Result<(), ()> {
+        let pipeline = match &self.pipeline {
+            Some(p) => p,
+            None => return Ok(()),
+        };
+
+        let output = match self.surface.get_current_texture() {
+            wgpu::CurrentSurfaceTexture::Success(t) => t,
+            wgpu::CurrentSurfaceTexture::Suboptimal(t) => {
+                self.surface.configure(&self.device, &self.config);
+                t
+            }
+            wgpu::CurrentSurfaceTexture::Timeout
+            | wgpu::CurrentSurfaceTexture::Occluded
+            | wgpu::CurrentSurfaceTexture::Validation => return Ok(()),
+            wgpu::CurrentSurfaceTexture::Outdated => {
+                self.surface.configure(&self.device, &self.config);
+                return Ok(());
+            }
+            wgpu::CurrentSurfaceTexture::Lost => {
+                return Err(());
+            }
+        };
+
+        let view = output
+            .texture
+            .create_view(&wgpu::TextureViewDescriptor::default());
+
+        let mut encoder = self
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("Render Encoder"),
+            });
+
+        {
+            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("Main Pass"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color {
+                            r: 0.05,
+                            g: 0.05,
+                            b: 0.08,
+                            a: 1.0,
+                        }),
+                        store: wgpu::StoreOp::Store,
+                    },
+                    depth_slice: None,
+                })],
+                depth_stencil_attachment: None,
+                ..Default::default()
+            });
+
+            render_pass.set_pipeline(pipeline);
+            render_pass.set_bind_group(0, bind_group, &[]);
+            render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
+            render_pass.set_index_buffer(index_buffer.slice(..), wgpu::IndexFormat::Uint32);
+            render_pass.draw_indexed(0..num_indices, 0, 0..1);
+        }
+
+        self.queue.submit(std::iter::once(encoder.finish()));
+        output.present();
+        Ok(())
+    }
+
+    /// Render with no vertex/index buffers or bind groups (for shaders that generate
+    /// vertices via @builtin(vertex_index), like the simple triangle shader).
     pub fn render(&self) -> Result<(), ()> {
         let pipeline = match &self.pipeline {
             Some(p) => p,
@@ -148,6 +226,72 @@ impl GfxContext {
 
             render_pass.set_pipeline(pipeline);
             render_pass.draw(0..3, 0..1);
+        }
+
+        self.queue.submit(std::iter::once(encoder.finish()));
+        output.present();
+        Ok(())
+    }
+
+    /// Begin a render pass and execute the given draw closure.
+    pub fn render_with<F>(&self, draw: F) -> Result<(), ()>
+    where
+        F: FnOnce(&mut wgpu::RenderPass),
+    {
+        let pipeline = match &self.pipeline {
+            Some(p) => p,
+            None => return Ok(()),
+        };
+
+        let output = match self.surface.get_current_texture() {
+            wgpu::CurrentSurfaceTexture::Success(t) => t,
+            wgpu::CurrentSurfaceTexture::Suboptimal(t) => {
+                self.surface.configure(&self.device, &self.config);
+                t
+            }
+            wgpu::CurrentSurfaceTexture::Timeout
+            | wgpu::CurrentSurfaceTexture::Occluded
+            | wgpu::CurrentSurfaceTexture::Validation => return Ok(()),
+            wgpu::CurrentSurfaceTexture::Outdated => {
+                self.surface.configure(&self.device, &self.config);
+                return Ok(());
+            }
+            wgpu::CurrentSurfaceTexture::Lost => return Err(()),
+        };
+
+        let view = output
+            .texture
+            .create_view(&wgpu::TextureViewDescriptor::default());
+
+        let mut encoder = self
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("Render Encoder"),
+            });
+
+        {
+            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("Main Pass"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color {
+                            r: 0.05,
+                            g: 0.05,
+                            b: 0.08,
+                            a: 1.0,
+                        }),
+                        store: wgpu::StoreOp::Store,
+                    },
+                    depth_slice: None,
+                })],
+                depth_stencil_attachment: None,
+                ..Default::default()
+            });
+
+            render_pass.set_pipeline(pipeline);
+            draw(&mut render_pass);
         }
 
         self.queue.submit(std::iter::once(encoder.finish()));
