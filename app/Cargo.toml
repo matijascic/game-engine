@@ -2,6 +2,10 @@
 name = "app"
 version = "0.1.0"
 edition = "2024"
+build = "build.rs"
+
+[build-dependencies]
+wgsl_bindgen = "0.22.2"
 
 [dependencies]
 gfx = { path = "../gfx" }

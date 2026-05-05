@@ -1,15 +1,13 @@
 use std::sync::Arc;
 use winit::window::Window;
 
-use crate::pipeline::PipelineBuilder;
-
 pub struct GfxContext {
     pub surface: wgpu::Surface<'static>,
     pub device: wgpu::Device,
     pub queue: wgpu::Queue,
     pub config: wgpu::SurfaceConfiguration,
     pub size: winit::dpi::PhysicalSize<u32>,
-    pub pipeline: wgpu::RenderPipeline,
+    pub pipeline: Option<wgpu::RenderPipeline>,
 }
 
 impl GfxContext {
@@ -66,18 +64,22 @@ impl GfxContext {
 
         surface.configure(&device, &config);
 
-        let pipeline = PipelineBuilder::new(&device, surface_format)
-            .shader(include_str!("../shaders/triangle.wgsl"))
-            .build("Triangle Pipeline");
-
         Self {
             surface,
             device,
             queue,
             config,
             size,
-            pipeline,
+            pipeline: None,
         }
+    }
+
+    pub fn set_pipeline(&mut self, pipeline: wgpu::RenderPipeline) {
+        self.pipeline = Some(pipeline);
+    }
+
+    pub fn surface_format(&self) -> wgpu::TextureFormat {
+        self.config.format
     }
 
     pub fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
@@ -90,6 +92,11 @@ impl GfxContext {
     }
 
     pub fn render(&self) -> Result<(), ()> {
+        let pipeline = match &self.pipeline {
+            Some(p) => p,
+            None => return Ok(()),
+        };
+
         let output = match self.surface.get_current_texture() {
             wgpu::CurrentSurfaceTexture::Success(t) => t,
             wgpu::CurrentSurfaceTexture::Suboptimal(t) => {
@@ -139,7 +146,7 @@ impl GfxContext {
                 ..Default::default()
             });
 
-            render_pass.set_pipeline(&self.pipeline);
+            render_pass.set_pipeline(pipeline);
             render_pass.draw(0..3, 0..1);
         }
 

@@ -6,6 +6,8 @@ use winit::{
     window::{Window, WindowAttributes},
 };
 
+mod bindings;
+
 struct App {
     window: Option<Arc<Window>>,
     ctx: Option<gfx::GfxContext>,
@@ -17,6 +19,44 @@ impl App {
             window: None,
             ctx: None,
         }
+    }
+
+    fn build_triangle_pipeline(
+        device: &wgpu::Device,
+        surface_format: wgpu::TextureFormat,
+    ) -> wgpu::RenderPipeline {
+        let shader = bindings::triangle::create_shader_module_embed_source(device);
+        let pipeline_layout = bindings::triangle::create_pipeline_layout(device);
+        let vertex_entry = bindings::triangle::vs_main_entry();
+        let fragment_entry = bindings::triangle::fs_main_entry([Some(wgpu::ColorTargetState {
+            format: surface_format,
+            blend: Some(wgpu::BlendState::REPLACE),
+            write_mask: wgpu::ColorWrites::ALL,
+        })]);
+
+        device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("Triangle Pipeline"),
+            layout: Some(&pipeline_layout),
+            vertex: bindings::triangle::vertex_state(&shader, &vertex_entry),
+            fragment: Some(bindings::triangle::fragment_state(&shader, &fragment_entry)),
+            primitive: wgpu::PrimitiveState {
+                topology: wgpu::PrimitiveTopology::TriangleList,
+                strip_index_format: None,
+                front_face: wgpu::FrontFace::Ccw,
+                cull_mode: Some(wgpu::Face::Back),
+                polygon_mode: wgpu::PolygonMode::Fill,
+                unclipped_depth: false,
+                conservative: false,
+            },
+            depth_stencil: None,
+            multisample: wgpu::MultisampleState {
+                count: 1,
+                mask: !0,
+                alpha_to_coverage_enabled: false,
+            },
+            multiview_mask: None,
+            cache: None,
+        })
     }
 }
 
@@ -36,7 +76,13 @@ impl ApplicationHandler for App {
                 .unwrap(),
         );
 
-        self.ctx = Some(gfx::GfxContext::new(window.clone()));
+        let mut ctx = gfx::GfxContext::new(window.clone());
+
+        let pipeline = Self::build_triangle_pipeline(&ctx.device, ctx.surface_format());
+
+        ctx.set_pipeline(pipeline);
+
+        self.ctx = Some(ctx);
         self.window = Some(window);
     }
 

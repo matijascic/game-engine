@@ -1,5 +1,3 @@
-pub mod buffer;
 pub mod context;
-pub mod pipeline;
 
 pub use context::GfxContext;
